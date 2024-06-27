@@ -1,73 +1,132 @@
-import { attr, getNode, insertLast, clearContents } from './lib/index.js';
+// import { xhrPromise } from './lib/index.js';
+/* global gsap */
+import {
+  tiger,
+  delayP,
+  getNode,
+  changeColor,
+  clearContents,
+  renderSpinner,
+  renderUserCard,
+  renderEmptyCard,
+} from './lib/index.js';
 
-/* global clearContents */
+// xhrPromise.get('https://jsonplaceholder.typicode.com/users').then(console.log);
 
-console.log(attr);
+// await 병
+// Promise 객체
+////const getData = async () => {
+////  const data = await xhrPromise.get('https://jsonplaceholder.typicode.com/users')
+//// console.log( data );
+////}
 
-function phase1() {
-  //1. input vlaue 값 가져오기(first.second)
-  // - input 선택하기
-  // - input에게 input 이벤트를 걸어준다
-  // - input.value 값을 가져온다
-  //2. 숫자 더하기
-  // - 숫자 형변환
-  //3. result 내용 지우기
-  // - clearContents
+// getData()
 
-  const first = getNode('#firstNumber');
-  const second = getNode('#secondNumber');
-  const result = getNode('.result');
-  const clear = getNode('#clear');
+const ENDPOINT = 'http://localhost:3000/users';
 
-  function handleInput() {
-    const firstValue = Number(first.value);
-    const secondValue = +second.value;
-    const total = firstValue + secondValue;
+// 1. user 데이터 fetch 해주세요.
+//    - tiger.get
 
-    clearContents(result);
-    insertLast(result, total);
+// 2. fetch 데이터의 유저 이름만 콘솔 출력
+//     - 데이터 유형 파악  ex) 객체,배열,숫자,문자
+//     - 적당한 메서드 사용하기
 
-    //   console.log(total);
-    //result.textContent = ''; //result에 textContent를 먼저 비워주고
+// 3. 유저 이름 화면에 렌더링
+//https://loading.io
+const userCardInner = getNode('.user-card-inner');
+
+async function renderUserList() {
+  // 로딩 스피너 렌더링
+  renderSpinner(userCardInner);
+
+  // await delayP(2000);
+
+  try {
+    gsap.to('.loadingSpinner', {
+      opacity: 0,
+      onComplete() {
+        console.log(this);
+        this._targets[0].remove();
+      },
+    });
+    // getNode('.loadingSpinner').remove()
+
+    const response = await tiger.get(ENDPOINT);
+
+    const data = response.data;
+
+    data.forEach((user) => renderUserCard(userCardInner, user));
+
+    changeColor('.user-card');
+
+    gsap.from('.user-card', {
+      x: -100,
+      opacity: 0,
+      stagger: {
+        amount: 1,
+        from: 'start',
+      },
+    });
+  } catch {
+    console.error('에러가 발생했습니다!');
+    renderEmptyCard(userCardInner);
   }
-
-  function handleClear(e) {
-    e.preventDefault();
-
-    clearContents(first);
-    clearContents(second);
-    result.textContent = '-';
-  }
-
-  first.addEventListener('input', handleInput); //대상에게 input 타입으로 걸어줌 //함수의 재사용성 -> 매개변수
-  second.addEventListener('input', handleInput);
-  clear.addEventListener('click', handleClear);
 }
 
-phase1();
+renderUserList();
 
-//
-//
-//이벤트 위임을 사용해서 처리하는 코드
-function phase2() {
-  const calculator = getNode('.calculator');
-  const result = getNode('.result');
-  const clear = getNode('#clear');
-  const numberInputs = [...document.querySelectorAll('input:not(#clear)')]; //clear를 제외한 input만 수집
+function handleDeleteCard(e) {
+  const button = e.target.closest('button');
 
-  function handleInput() {
-    const total = numberInputs.reduce((acc, cur) => acc + Number(cur.value), 0);
+  if (!button) return;
 
-    clearContents(result);
-    insertLast(result, total);
-  }
+  const article = button.closest('article');
+  const index = article.dataset.index.slice(5);
 
-  function handleClear(e) {
-    e.preventDefault();
-    numberInputs.forEach(clearContents);
-    result.textContent = '-';
-  }
-
-  calculator.addEventListener('input', handleInput);
-  clear.addEventListener('click', handleClear);
+  tiger.delete(`${ENDPOINT}/${index}`).then(() => {
+    // 요청 보내고 렌더링하기
+    clearContents(userCardInner);
+    renderUserList();
+  });
 }
+
+userCardInner.addEventListener('click', handleDeleteCard);
+
+const createButton = getNode('.create');
+const cancelButton = getNode('.cancel');
+const doneButton = getNode('.done');
+
+function handleCreate() {
+  // gsap.to('.pop',{autoAlpha:1})
+  createButton.classList.add('open');
+}
+
+function handleCancel(e) {
+  e.stopPropagation();
+  // gsap.to('.pop',{autoAlpha:0})
+  createButton.classList.remove('open');
+}
+
+function handleDone(e) {
+  e.preventDefault();
+
+  const name = getNode('#nameField').value;
+  const email = getNode('#emailField').value;
+  const website = getNode('#siteField').value;
+
+  tiger.post(ENDPOINT, { name, email, website }).then(() => {
+    // 1. 팝업 닫기
+    // gsap.to('.pop',{autoAlpha:0})
+    createButton.classList.remove('open');
+
+    // 2. 카드 컨텐츠 비우기
+    clearContents(userCardInner);
+
+    // 3. 유저카드 렌더링하기
+    renderUserList();
+  });
+}
+
+createButton.addEventListener('click', handleCreate);
+cancelButton.addEventListener('click', handleCancel);
+doneButton.addEventListener('click', handleDone);

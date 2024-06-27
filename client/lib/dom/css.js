@@ -92,5 +92,5 @@ function setStyle(node, prop, value) {
   node.style[prop] = value;
 }
 
-const css = (node, prop, value) =>
+export const css = (node, prop, value) =>
   !value ? getStyle(node, prop) : setStyle(node, prop, value);
